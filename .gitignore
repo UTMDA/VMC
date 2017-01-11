@@ -1,0 +1,38 @@
+# Random files
+*.swp
+.~
+thumbs.db
+
+# Build results
+[Dd]ebug/
+[Rr]elease/
+
+# Compiled Object files
+*.slo
+*.lo
+*.ko
+*.o
+*.obj
+*.elf
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+*.hex
+*.bin
