@@ -19,12 +19,14 @@
 #include "LED.h"
 
 /* Private variables ---------------------------------------------------------*/
+TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
+static void MX_TIM2_Init(void); 
 
 /* Using Semihosting in debug mode -------------------------------------------*/
 #ifdef _DEBUG
@@ -50,11 +52,16 @@ int main(void)
 
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
+    MX_TIM2_Init();
 
     /* Active Semihosting */
     #ifdef _DEBUG
         initialise_monitor_handles();
     #endif
+
+    /* Active PWM output */
+    Servo_Start(&htim2);
+    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, SERVO_PWM_NEUTRAL_DUTY_CYCLE);
 
     while (1)
     {
@@ -120,6 +127,61 @@ void SystemClock_Config(void)
     HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
+/* TIM2 init function */
+static void MX_TIM2_Init(void)
+{
+
+    TIM_ClockConfigTypeDef sClockSourceConfig;
+    TIM_MasterConfigTypeDef sMasterConfig;
+    TIM_OC_InitTypeDef sConfigOC;
+
+    htim2.Instance = TIM2;
+    htim2.Init.Prescaler = SystemCoreClock / (PWM_RESOLUTION * PWM_FREQUENCY) - 1;
+    htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim2.Init.Period = PWM_RESOLUTION;
+    htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    sConfigOC.OCMode = TIM_OCMODE_PWM1;
+    sConfigOC.Pulse = SERVO_PWM_DEFAULT_DUTY_CYCLE;
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+    if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    sConfigOC.Pulse = MOTOR_PWM_DEFAULT_DUTY_CYCLE;
+    if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
+    HAL_TIM_MspPostInit(&htim2);
+
+}
+
 /* USART2 init function */
 static void MX_USART2_UART_Init(void)
 {
@@ -176,6 +238,7 @@ static void MX_GPIO_Init(void)
 void Error_Handler(void)
 {
     /* User can add his own implementation to report the HAL error return state */
+    display("HAL Configuration Failed!/n");
     while(1) 
     {
     }
