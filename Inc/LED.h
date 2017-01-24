@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  File Name: LED.h
+ *  File Name: led.h
  *
  *  Description: LED blink functions Header File
  *

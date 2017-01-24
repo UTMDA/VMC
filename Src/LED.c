@@ -1,5 +1,5 @@
 /*******************************************************************************
- *  File Name: LED.c
+ *  File Name: led.c
  *
  *  Description: LED blink functions Source File
  *
@@ -18,8 +18,8 @@
 #include "stm32f4xx_hal.h"
 
 /**
- * @brief Set the LED configured in the header file
- * @param None
+ * @brief  Set the LED configured in the header file
+ * @param  None
  * @retval None
 **/
 void LED_Set(void)
@@ -28,8 +28,8 @@ void LED_Set(void)
 }
 
 /**
- * @brief Clear the LED configured in the header file
- * @param None
+ * @brief  Clear the LED configured in the header file
+ * @param  None
  * @retval None
 **/
 void LED_Clear(void)
@@ -38,8 +38,8 @@ void LED_Clear(void)
 }
 
 /**
- * @brief Toggle the LED configured in the header file
- * @param None
+ * @brief  Toggle the LED configured in the header file
+ * @param  None
  * @retval None
 **/
 void LED_Toggle(void)
@@ -48,8 +48,8 @@ void LED_Toggle(void)
 }
 
 /**
- * @brief Clear the LED configured in the header file according to time defined
- * @param None
+ * @brief  Clear the LED configured in the header file according to time defined
+ * @param  None
  * @retval None
 **/
 void LED_Blink(void)

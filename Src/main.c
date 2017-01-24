@@ -7,6 +7,8 @@
  *    Author               Date          Description
  *    --------------------------------------------------------------------------
  *    Shizhang Yin         01/11/2017    Created
+ *    Shizhang Yin         01/16/2017    Added I2C initialization code, and
+ *                                       BNO055 driver
  *
  * Copyright (c) UTMDA, 2017
  * Licensed under the MIT License. See LICENSE file in the project root for full
@@ -17,28 +19,24 @@
 #include "main.h"
 #include "stm32f4xx_hal.h"
 #include "LED.h"
+#include "servo_control.h"
+#include "_9_axis.h"
 
 /* Private variables ---------------------------------------------------------*/
+I2C_HandleTypeDef hi2c1;
 TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
+
+struct bno055_t bno055;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void); 
+static void MX_I2C1_Init(void);
 
-/* Using Semihosting in debug mode -------------------------------------------*/
-#ifdef _DEBUG
-    extern void initialise_monitor_handles(void);
-#endif
-
-/* Function macro prevent compiling printf() -----------------------------------*/
-#ifdef _DEBUG
-    #define display(fmt, ...) printf(fmt, ##__VA_ARGS__)
-#else
-    #define display(fmt, ...)
-#endif
+extern void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
 int main(void)
 {
@@ -53,20 +51,23 @@ int main(void)
     /* Initialize all configured peripherals */
     MX_GPIO_Init();
     MX_TIM2_Init();
+    MX_I2C1_Init();
 
     /* Active Semihosting */
     #ifdef _DEBUG
         initialise_monitor_handles();
     #endif
 
-    /* Active PWM output */
+    /* Active Servo PWM output */
     Servo_Start(&htim2);
     __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, SERVO_PWM_NEUTRAL_DUTY_CYCLE);
+
+    /* Active 9-axis sensor */
+    _9_Axis_Init(&hi2c1);
 
     while (1)
     {
         LED_Blink();
-        display("LED FLASHING!!!\n");
     }
 
 }
@@ -87,14 +88,13 @@ void SystemClock_Config(void)
 
     /**Initializes the CPU, AHB and APB busses clocks 
     */
-    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
-    RCC_OscInitStruct.HSIState = RCC_HSI_ON;
-    RCC_OscInitStruct.HSICalibrationValue = 16;
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSE;
+    RCC_OscInitStruct.HSEState = RCC_HSE_BYPASS;
     RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
-    RCC_OscInitStruct.PLL.PLLM = 16;
-    RCC_OscInitStruct.PLL.PLLN = 400;
-    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV4;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLM = 4;
+    RCC_OscInitStruct.PLL.PLLN = 84;
+    RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV2;
     RCC_OscInitStruct.PLL.PLLQ = 4;
     if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
     {
@@ -110,7 +110,7 @@ void SystemClock_Config(void)
     RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
     RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK)
+    if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
     {
         Error_Handler();
     }
@@ -125,6 +125,26 @@ void SystemClock_Config(void)
 
     /* SysTick_IRQn interrupt configuration */
     HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+}
+
+/* I2C1 init function */
+static void MX_I2C1_Init(void)
+{
+
+    hi2c1.Instance = I2C1;
+    hi2c1.Init.ClockSpeed = 400000;
+    hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
+    hi2c1.Init.OwnAddress1 = 0;
+    hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+    hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+    hi2c1.Init.OwnAddress2 = 0;
+    hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+    hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+    if (HAL_I2C_Init(&hi2c1) != HAL_OK)
+    {
+      Error_Handler();
+    }
+
 }
 
 /* TIM2 init function */
@@ -257,6 +277,7 @@ void assert_failed(uint8_t* file, uint32_t line)
 {
     /* User can add his own implementation to report the file name and line number,
       ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+    display("Wrong parameters value: file %s on line %d\r\n", file, line);
 }
 
 #endif

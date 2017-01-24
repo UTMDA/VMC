@@ -20,6 +20,18 @@
 
 /* Includes ------------------------------------------------------------------*/
 
+/* Using Semihosting in debug mode -------------------------------------------*/
+#ifdef _DEBUG
+    extern void initialise_monitor_handles(void);
+#endif
+
+/* Function macro prevent compiling printf() ---------------------------------*/
+#ifdef _DEBUG
+    #define display(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#else
+    #define display(fmt, ...)
+#endif
+
 /* Pin defines ---------------------------------------------------------------*/
 #define B1_Pin GPIO_PIN_13
 #define B1_GPIO_Port GPIOC
