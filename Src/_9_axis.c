@@ -2,7 +2,7 @@
  *  File Name: _9_axis.c
  *
  *  Description: This file constains the key functions that works with BNO055
-                 9-axis sensosr
+ *               9-axis sensosr
  *
  *    History:
  *    Author               Date          Description
@@ -20,8 +20,8 @@
 #include "_9_axis.h"
 
 /* Private variables ---------------------------------------------------------*/
-I2C_HandleTypeDef * i2c;
-struct bno055_t bno055;
+static I2C_HandleTypeDef * i2c;
+static struct bno055_t bno055;
 
 /**
  * @brief  Initialize the BNO055 device and setup I2C
@@ -44,13 +44,6 @@ void _9_Axis_Init(I2C_HandleTypeDef * hi2c)
     }
     bno055_set_power_mode(BNO055_POWER_MODE_NORMAL);
     bno055_set_operation_mode(BNO055_OPERATION_MODE_AMG);
-    while(1)
-    {
-        HAL_Delay(100);
-        s16 abc;
-        bno055_read_accel_x(&abc);
-        display("%d\n", abc);
-    }
 }
 
 /**

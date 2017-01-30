@@ -2,7 +2,7 @@
  *  File Name: _9_axis.h
  *
  *  Description: This file constains the key functions that works with BNO055
-                 9-axis sensosr
+ *               9-axis sensosr
  *
  *    History:
  *    Author               Date          Description
@@ -29,10 +29,28 @@
 #define	I2C_BUFFER_LEN 8
 
 /* Function prototypes -------------------------------------------------------*/
+
+/**
+ * @brief  Initialize the BNO055 device and setup I2C
+ * @param  hi2c: Pointer to I2C_HandleTypeDef structure that contains
+ *              the configuration information for the specified I2C module
+ * @retval None
+**/
 void _9_Axis_Init(I2C_HandleTypeDef * hi2c);
 
+/**
+* @brief  This function will be called with the BNO055 API
+**/
 BNO055_RETURN_FUNCTION_TYPE _9_Axis_Bus_Write(uint8_t dev_addr, uint8_t reg_addr, uint8_t * reg_data, uint8_t r_len);
+
+/**
+* @brief  This function will be called with the BNO055 API
+**/
 BNO055_RETURN_FUNCTION_TYPE _9_Axis_Bus_Read(uint8_t dev_addr, uint8_t reg_addr, uint8_t * reg_data, uint8_t wr_len);
+
+/**
+* @brief  This function will be called with the BNO055 API
+**/
 BNO055_DELAY_RETURN_TYPE Delay_Func(BNO055_DELAY_PARAM_TYPES delay_in_msec);
 
 #endif /* _9_AXIS_H */

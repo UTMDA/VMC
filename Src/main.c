@@ -21,13 +21,14 @@
 #include "LED.h"
 #include "servo_control.h"
 #include "_9_axis.h"
+#include "uart.h"
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 TIM_HandleTypeDef htim2;
 UART_HandleTypeDef huart2;
-
-struct bno055_t bno055;
+DMA_HandleTypeDef hdma_usart2_rx;
+DMA_HandleTypeDef hdma_usart2_tx;
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -35,6 +36,8 @@ void Error_Handler(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void); 
 static void MX_I2C1_Init(void);
+static void MX_USART2_UART_Init(void);
+static void MX_DMA_Init(void);
 
 extern void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
@@ -49,14 +52,18 @@ int main(void)
     SystemClock_Config();
 
     /* Initialize all configured peripherals */
+    MX_DMA_Init();
     MX_GPIO_Init();
     MX_TIM2_Init();
     MX_I2C1_Init();
+    MX_USART2_UART_Init();
 
     /* Active Semihosting */
     #ifdef _DEBUG
         initialise_monitor_handles();
     #endif
+
+    /* Active UART for system control */
 
     /* Active Servo PWM output */
     Servo_Start(&htim2);
@@ -65,6 +72,8 @@ int main(void)
     /* Active 9-axis sensor */
     _9_Axis_Init(&hi2c1);
 
+    UART_CLI_Init(&huart2);
+    display("%d\n", UART_CLI_Rx(1));
     while (1)
     {
         LED_Blink();
@@ -206,18 +215,36 @@ static void MX_TIM2_Init(void)
 static void MX_USART2_UART_Init(void)
 {
 
-    huart2.Instance = USART2;
-    huart2.Init.BaudRate = 115200;
-    huart2.Init.WordLength = UART_WORDLENGTH_8B;
-    huart2.Init.StopBits = UART_STOPBITS_1;
-    huart2.Init.Parity = UART_PARITY_NONE;
-    huart2.Init.Mode = UART_MODE_TX_RX;
-    huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-    huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-    if (HAL_UART_Init(&huart2) != HAL_OK)
-    {
-        Error_Handler();
-    }
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+
+}
+
+/** 
+  * Enable DMA controller clock
+  */
+static void MX_DMA_Init(void) 
+{
+  /* DMA controller clock enable */
+  __HAL_RCC_DMA1_CLK_ENABLE();
+
+  /* DMA interrupt init */
+  /* DMA1_Stream5_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+  /* DMA1_Stream6_IRQn interrupt configuration */
+  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
 
 }
 
