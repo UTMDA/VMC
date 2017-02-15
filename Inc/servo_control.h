@@ -22,7 +22,20 @@
 #include "stm32f4xx_hal.h"
 
 /* Function prototypes -------------------------------------------------------*/
+/**
+ * @brief  Start the turning servo
+ * @param  htim: pointer to a TIM_HandleTypeDef structure that contains
+ *                the configuration information for TIM module.
+ * @retval None
+**/
 void Servo_Start(TIM_HandleTypeDef * htim);
+
+/**
+ * @brief  Stop the turning servo
+ * @param  htim: pointer to a TIM_HandleTypeDef structure that contains
+ *                the configuration information for TIM module.
+ * @retval None
+**/
 void Servo_Stop(TIM_HandleTypeDef * htim);
 
 #endif /* SERVO_CONTROL_H */

@@ -26,10 +26,11 @@
 
 /**
  * @brief  wrapper function to do DMA transmit
+ * @param  tx_buf: pointer to buffer to be send
  * @param  Size: Amount of data to be sent
  * @retval HAL Status
 **/
-HAL_StatusTypeDef UART_CLI_Tx(uint16_t Size);
+HAL_StatusTypeDef UART_CLI_Tx(uint8_t * tx_buf, uint16_t Size);
 
 /**
  * @brief  wrapper function to do DMA receive

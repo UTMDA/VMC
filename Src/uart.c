@@ -13,6 +13,7 @@
  * Licensed under the MIT License. See LICENSE file in the project root for full
  * license information.
 *******************************************************************************/
+
 /* Includes ------------------------------------------------------------------*/
 #include "uart.h"
 #include "uart_CLI.h"
@@ -20,21 +21,26 @@
 /* External variables --------------------------------------------------------*/
 extern UART_HandleTypeDef huart2;
 
-extern CLI_rx_buf[CLI_RX_BUF_SIZE];
+extern uint8_t CLI_rx_buf[CLI_RX_BUF_SIZE];
 
 /* Private variables ---------------------------------------------------------*/
 //Declared volatiled to prevent to be optimized away
-volatile uint8_t Rx_buf;
-volatile uint8_t cnt = 0;
+static volatile uint8_t cnt = 0;
+static uint8_t Rx_buf;
 
 /**
  * @brief  wrapper function to do DMA transmit
+ * @param  tx_buf: pointer to buffer to be send
  * @param  Size: Amount of data to be sent
  * @retval HAL Status
 **/
-HAL_StatusTypeDef UART_CLI_Tx(uint16_t Size)
+HAL_StatusTypeDef UART_CLI_Tx(uint8_t * tx_buf, uint16_t Size)
 {
-    //return HAL_UART_Transmit_DMA(uart, tx_buf, Size);
+    while(HAL_UART_GetState(&huart2) != HAL_UART_STATE_READY)
+    {
+        //Wait until last Tx finishes, this can be optimized for better perfomance
+    }
+    return HAL_UART_Transmit_DMA(&huart2, tx_buf, Size);
 }
 
 /**
@@ -73,7 +79,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         {
             //Normal Paser function
             //paser_func(cnt - 1);
-            uint8_t * str = "Normal Parser Call\n";
+            uint8_t * str = (uint8_t *)"Normal Parser Call\n";
             int i = HAL_UART_Transmit_DMA(huart,str,19);
             display("Tx Return:%d\n", i);
             cnt = 0;
@@ -85,7 +91,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
                 //Buffer full
                 //Error Paser function that handles the overflowed buffer
                 //paser_func_error();
-                uint8_t * str = "\nError Parser Call\n";
+                uint8_t * str = (uint8_t *)"\nError Parser Call\n";
                 int i = HAL_UART_Transmit_DMA(huart,str,19);
                 display("Tx Return:%d\n", i);
                 cnt = 0;

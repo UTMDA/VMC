@@ -20,6 +20,7 @@
 /* Private variables ---------------------------------------------------------*/
 static UART_HandleTypeDef * uart;
 
+/* Shared variables ----------------------------------------------------------*/
 uint8_t CLI_tx_buf[CLI_TX_BUF_SIZE];
 uint8_t CLI_rx_buf[CLI_RX_BUF_SIZE];
 
@@ -32,5 +33,6 @@ uint8_t CLI_rx_buf[CLI_RX_BUF_SIZE];
 void UART_CLI_Init(UART_HandleTypeDef * huart)
 {
     uart = huart;
-    
+    /* Start CLI */
+    UART_CLI_Rx(1);
 }

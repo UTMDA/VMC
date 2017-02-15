@@ -9,6 +9,8 @@
  *    Shizhang Yin         01/11/2017    Created
  *    Shizhang Yin         01/16/2017    Added I2C initialization code, and
  *                                       BNO055 driver
+ *    Shizhang Yin         02/13/2017    Added ADC code for switching between
+ *                                       computer control and controller control
  *
  * Copyright (c) UTMDA, 2017
  * Licensed under the MIT License. See LICENSE file in the project root for full
@@ -20,12 +22,16 @@
 #include "stm32f4xx_hal.h"
 #include "LED.h"
 #include "servo_control.h"
+#include "motor_control.h"
 #include "_9_axis.h"
 #include "uart.h"
+#include "uart_CLI.h"
 
 /* Private variables ---------------------------------------------------------*/
+ADC_HandleTypeDef hadc1;
 I2C_HandleTypeDef hi2c1;
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart2;
 DMA_HandleTypeDef hdma_usart2_rx;
 DMA_HandleTypeDef hdma_usart2_tx;
@@ -34,10 +40,12 @@ DMA_HandleTypeDef hdma_usart2_tx;
 void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
-static void MX_TIM2_Init(void); 
+static void MX_TIM2_Init(void);
+static void MX_TIM3_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_USART2_UART_Init(void);
 static void MX_DMA_Init(void);
+static void MX_ADC1_Init(void);
 
 extern void HAL_TIM_MspPostInit(TIM_HandleTypeDef *htim);
 
@@ -55,28 +63,38 @@ int main(void)
     MX_DMA_Init();
     MX_GPIO_Init();
     MX_TIM2_Init();
+    MX_TIM3_Init();
     MX_I2C1_Init();
     MX_USART2_UART_Init();
+    MX_ADC1_Init();
 
     /* Active Semihosting */
     #ifdef _DEBUG
         initialise_monitor_handles();
     #endif
 
-    /* Active UART for system control */
+    /* Active Mode Control */
+    Mode_Control_Start(&hadc1, &htim3);
+
+    /* Active UART for command line interface */
+    UART_CLI_Init(&huart2);
 
     /* Active Servo PWM output */
     Servo_Start(&htim2);
-    __HAL_TIM_SET_COMPARE(&htim2, TIM_CHANNEL_1, SERVO_PWM_NEUTRAL_DUTY_CYCLE);
+
+    /* Active Motor PWM output */
+    Motor_Start(&htim2);
 
     /* Active 9-axis sensor */
     _9_Axis_Init(&hi2c1);
 
-    UART_CLI_Init(&huart2);
-    display("%d\n", UART_CLI_Rx(1));
     while (1)
     {
-        LED_Blink();
+        //if(HAL_ADC_PollForConversion(&hadc1, 1000000) == HAL_OK)
+        //{
+            //display("%d\n", HAL_ADC_GetValue(&hadc1));
+        //}
+        //LED_Blink();
     }
 
 }
@@ -134,6 +152,43 @@ void SystemClock_Config(void)
 
     /* SysTick_IRQn interrupt configuration */
     HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+}
+
+/* ADC1 init function */
+static void MX_ADC1_Init(void)
+{
+
+    ADC_ChannelConfTypeDef sConfig;
+
+    /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
+    */
+    hadc1.Instance = ADC1;
+    hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
+    hadc1.Init.Resolution = ADC_RESOLUTION_12B;
+    hadc1.Init.ScanConvMode = DISABLE;
+    hadc1.Init.ContinuousConvMode = DISABLE;
+    hadc1.Init.DiscontinuousConvMode = DISABLE;
+    hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
+    hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
+    hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+    hadc1.Init.NbrOfConversion = 1;
+    hadc1.Init.DMAContinuousRequests = DISABLE;
+    hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+    if (HAL_ADC_Init(&hadc1) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    /**Configure for the selected ADC regular channel its corresponding rank in the sequencer and its sample time. 
+    */
+    sConfig.Channel = ADC_CHANNEL_4;
+    sConfig.Rank = 1;
+    sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
+    if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
 }
 
 /* I2C1 init function */
@@ -211,22 +266,54 @@ static void MX_TIM2_Init(void)
 
 }
 
+/* TIM3 init function */
+static void MX_TIM3_Init(void)
+{
+
+    TIM_ClockConfigTypeDef sClockSourceConfig;
+    TIM_MasterConfigTypeDef sMasterConfig;
+
+    htim3.Instance = TIM3;
+    htim3.Init.Prescaler = 839;
+    htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim3.Init.Period = 50000;
+    htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    if (HAL_TIM_OC_Init(&htim3) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+    {
+        Error_Handler();
+    }
+
+}
+
 /* USART2 init function */
 static void MX_USART2_UART_Init(void)
 {
 
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
-  {
-    Error_Handler();
-  }
+    huart2.Instance = USART2;
+    huart2.Init.BaudRate = 115200;
+    huart2.Init.WordLength = UART_WORDLENGTH_8B;
+    huart2.Init.StopBits = UART_STOPBITS_1;
+    huart2.Init.Parity = UART_PARITY_NONE;
+    huart2.Init.Mode = UART_MODE_TX_RX;
+    huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+    huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+    if (HAL_UART_Init(&huart2) != HAL_OK)
+    {
+        Error_Handler();
+    }
 
 }
 
@@ -235,16 +322,16 @@ static void MX_USART2_UART_Init(void)
   */
 static void MX_DMA_Init(void) 
 {
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
+    /* DMA controller clock enable */
+    __HAL_RCC_DMA1_CLK_ENABLE();
 
-  /* DMA interrupt init */
-  /* DMA1_Stream5_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
-  /* DMA1_Stream6_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
+    /* DMA interrupt init */
+    /* DMA1_Stream5_IRQn interrupt configuration */
+    HAL_NVIC_SetPriority(DMA1_Stream5_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(DMA1_Stream5_IRQn);
+    /* DMA1_Stream6_IRQn interrupt configuration */
+    HAL_NVIC_SetPriority(DMA1_Stream6_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(DMA1_Stream6_IRQn);
 
 }
 
